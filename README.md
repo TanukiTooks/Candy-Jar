@@ -4,7 +4,7 @@ Candy Jar is a [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp) mod that 
 
 The mod allows the player to collect excess potential from Pokémon and convert it into Rare Candy through the Candy Jar.
 
-##DISCLAIMER
+## DISCLAIMER
 
 This project was Vibe Coded using Chat GPT. 
 
