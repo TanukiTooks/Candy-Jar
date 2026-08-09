@@ -4,18 +4,15 @@ Candy Jar is a [Gen1Recomp](https://github.com/bryanthaboi/gen1recomp) mod that 
 
 The mod allows the player to collect excess potential from Pokémon and convert it into Rare Candy through the Candy Jar.
 
+##DISCLAIMER
+
+This project was Vibe Coded using Chat GPT. 
+
 ## Features
 
-- Candy Jar custom menu
-- Store Candy
-- Candify EXP
-- Unstable Crystal research quest
-- Power Regulator objective at the Power Plant
-- Engineer battle and reward
-- Research quest requiring all 8 Gym Badges
-- 20,000 stored EXP required to produce one Rare Candy
-- Research-progress dialogue
-- Vanilla item-use behaviour for other inventory items
+- Candy Jar item with custom menu
+- The ability to create and store Rare Candy from excess EXP earned at level 100
+- Short Quest to obtain the Item, started from Cinnabar Island's R&D Room
 
 ## Installation
 
