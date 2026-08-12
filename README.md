@@ -13,6 +13,7 @@ This project was Vibe Coded using Chat GPT.
 - Candy Jar item with custom menu
 - The ability to create and store Rare Candy from excess EXP earned at level 100
 - Short Quest to obtain the Item, started from Cinnabar Island's R&D Room
+- Works with Gen 2. Quest begins in a different location. (Currently untested)
 
 ## Installation
 
