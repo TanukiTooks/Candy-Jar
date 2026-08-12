@@ -10,6 +10,17 @@ local Font = require("src.render.Font")
 local Theme = require("src.ui.Theme")
 local Strings = require("src.core.Strings")
 local TextBox = require("src.render.TextBox")
+local GameVersion = require("src.core.GameVersion")
+
+local IS_GOLD = GameVersion.isGold()
+-- Gold's Cinnabar Lab no longer exists.  The Ruins of Alph Research Center is
+-- its active research facility and is the Gen 2 home for the quest scientist.
+local RESEARCH_MAP = IS_GOLD and "RUINS_OF_ALPH_RESEARCH_CENTER"
+  or "CINNABAR_LAB_METRONOME_ROOM"
+local RESEARCH_POS = IS_GOLD and { x = 6, y = 4 } or { x = 1, y = 5 }
+-- Gold keeps the POWER_PLANT id, but its redesigned interior needs a new
+-- placement for the engineer.
+local ENGINEER_POS = IS_GOLD and { x = 12, y = 10 } or { x = 27, y = 4 }
 
 local JAR_ID = "CANDY_JAR"
 local RARE_CANDY_ID = "RARE_CANDY"
@@ -508,22 +519,25 @@ mod.content.trainers:register(ENGINEER_TRAINER, {
   },
 })
 
-mod.content.maps:patch("POWER_PLANT", {
-  objects = { __append = {
-    {
-      index = 91,
-      x = 27,
-      y = 4,
-      sprite = "SPRITE_SUPER_NERD",
-      movement = "STAY",
-      range = "DOWN",
-      text = ENGINEER_TEXT,
-      name = ENGINEER_OBJECT,
-      hidden = true,
-    },
-  } },
-})
+if not IS_GOLD then
+  mod.content.maps:patch("POWER_PLANT", {
+    objects = { __append = {
+      {
+        index = 91,
+        x = ENGINEER_POS.x,
+        y = ENGINEER_POS.y,
+        sprite = "SPRITE_SUPER_NERD",
+        movement = "STAY",
+        range = "DOWN",
+        text = ENGINEER_TEXT,
+        name = ENGINEER_OBJECT,
+        hidden = true,
+      },
+    } },
+  })
+end
 
+if not IS_GOLD then
 mod.content.map_scripts:register("POWER_PLANT", {
   onEnter = function(game, ow)
     if getQuestStage() == 1 and getInventoryCount(game.save, REGULATOR_ID) <= 0 then
@@ -555,6 +569,7 @@ mod.content.map_scripts:register("POWER_PLANT", {
     },
   },
 })
+end
 
 -- Existing Eevee scientist
 local GIFT_TEXT = "TEXT_CINNABARLABMETRONOMEROOM_SCIENTIST2"
@@ -568,6 +583,7 @@ local function vanillaEeveeDialogue(game, overworld, npc)
   end
 end
 
+if not IS_GOLD then
 mod.content.map_scripts:register("CINNABAR_LAB_METRONOME_ROOM", {
   talk = {
     [GIFT_TEXT] = function(game, overworld, npc, onDone)
@@ -575,6 +591,7 @@ mod.content.map_scripts:register("CINNABAR_LAB_METRONOME_ROOM", {
     end,
   },
 })
+end
 
 -- Candy Jar research scientist
 local QUEST_TEXT = "TEXT_CANDY_JAR_SCIENTIST"
@@ -699,6 +716,7 @@ local function scientistQuest(game, overworld, npc)
   end
 end
 
+if not IS_GOLD then
 mod.content.map_scripts:register("CINNABAR_LAB_METRONOME_ROOM", {
   talk = {
     [QUEST_TEXT] = function(game, overworld, npc, onDone)
@@ -706,13 +724,14 @@ mod.content.map_scripts:register("CINNABAR_LAB_METRONOME_ROOM", {
     end,
   },
 })
+end
 
-mod.content.maps:patch("CINNABAR_LAB_METRONOME_ROOM", {
+mod.content.maps:patch(RESEARCH_MAP, {
   objects = { __append = {
     {
       index = SCIENTIST_INDEX,
-      x = 1,
-       y = 5,
+      x = RESEARCH_POS.x,
+      y = RESEARCH_POS.y,
       sprite = "SPRITE_SCIENTIST",
       movement = "STAY",
       range = "NONE",
@@ -721,5 +740,34 @@ mod.content.maps:patch("CINNABAR_LAB_METRONOME_ROOM", {
     },
   } },
 })
+
+-- Gold has no map_scripts registry yet.  Its engineer is therefore a runtime
+-- object, recreated when the player enters the Power Plant only while the
+-- regulator objective is active.  This keeps the Gen 1 event-script version
+-- intact while using Gold's supported world API for visibility.
+if IS_GOLD then
+  local goldEngineerId
+  local function refreshGoldEngineer()
+    local ow = mod.world:overworld()
+    local onPowerPlant = ow and ow.map and ow.map.id == "POWER_PLANT"
+    local active = onPowerPlant and getQuestStage() == 1
+      and getInventoryCount(ow.game.save, REGULATOR_ID) <= 0
+    if active and not goldEngineerId then
+      goldEngineerId = mod.world:spawnNpc("POWER_PLANT", {
+        x = ENGINEER_POS.x,
+        y = ENGINEER_POS.y,
+        sprite = "SPRITE_SUPER_NERD",
+        movement = "STAY",
+        range = "DOWN",
+        text = ENGINEER_TEXT,
+        name = ENGINEER_OBJECT,
+      })
+    elseif not active and goldEngineerId then
+      mod.world:removeNpc(goldEngineerId)
+      goldEngineerId = nil
+    end
+  end
+  mod.events:on("map.entered", refreshGoldEngineer)
+end
 
 mod.log:info("Candy Jar loaded")
