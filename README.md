@@ -14,7 +14,8 @@ This project was Vibe Coded using Chat GPT.
 - The ability to create and store Rare Candy from excess EXP earned at level 100
 - Short Quest to obtain the Item, started from Cinnabar Island's R&D Room
 - Supports Pokémon Gold, where the quest begins at the Ruins of Alph Research Center
-- Optional Quest Menu integration with ordered objectives and live crystal EXP
+- Optional [Quest Menu](https://github.com/TanukiTooks/Quest-Menu) integration
+  with ordered objectives and live crystal EXP
 
 ## Installation
 
@@ -22,8 +23,9 @@ This project was Vibe Coded using Chat GPT.
 2. Install the ZIP through the Gen1Recomp launcher.
 3. Enable **Candy Jar** in the mod manager.
 
-Quest Menu integration is optional. When both mods are enabled, the Candy Jar
-research appears in the journal automatically.
+[Quest Menu](https://github.com/TanukiTooks/Quest-Menu) integration is optional.
+When both mods are enabled, the Candy Jar research appears in the journal
+automatically.
 
 The `mod/` directory contains the editable source used for the release.
 
