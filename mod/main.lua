@@ -17,6 +17,8 @@ local IS_GOLD = GameVersion.isGold()
 -- its active research facility and is the Gen 2 home for the quest scientist.
 local RESEARCH_MAP = IS_GOLD and "RUINS_OF_ALPH_RESEARCH_CENTER"
   or "CINNABAR_LAB_METRONOME_ROOM"
+local RESEARCH_AREA = IS_GOLD and "RUINS_OF_ALPH_OUTSIDE"
+  or "CINNABAR_ISLAND"
 local RESEARCH_POS = IS_GOLD and { x = 6, y = 4 } or { x = 1, y = 5 }
 -- Gold keeps the POWER_PLANT id, but its redesigned interior needs a new
 -- placement for the engineer.
@@ -96,6 +98,82 @@ local function clearCrystalExp()
   mod.save:set(QUEST_CRYSTAL_EXP, 0)
 end
 
+local getInventoryCount
+
+-- Optional Quest Menu integration. Candy Jar remains fully standalone when
+-- the journal is not installed; the optional dependency only guarantees that
+-- Quest Menu loads first when both mods are enabled.
+local function registerJournalQuest()
+  if type(mod.find) ~= "function" then return end
+  local journal = mod.find("quest_menu")
+  local api = journal and journal.exports
+  if not (api and api.apiVersion == 1 and type(api.register) == "function") then
+    mod.log:info("Quest Menu not found; Candy Jar journal entry disabled")
+    return
+  end
+
+  local key, err = api.register(mod.id, {
+    id = "candy_research",
+    title = "Crystallized Potential",
+    gearTitle = "Candy Research",
+    hint = "A researcher may need help studying unusual crystals.",
+    description = "Help a researcher turn a Pokémon's excess potential into Rare Candy.",
+    gearDescription = "Help research turn excess potential into Rare Candy.",
+    maps = { RESEARCH_AREA, RESEARCH_MAP, "POWER_PLANT" },
+    games = { "gen1", "gold" },
+    priority = 5,
+    discovered = function(game)
+      return getQuestStage() >= 1
+        or getInventoryCount(game and game.save, JAR_ID) > 0
+    end,
+    complete = function(game)
+      return getQuestStage() >= QUEST_COMPLETE
+        or getInventoryCount(game and game.save, JAR_ID) > 0
+    end,
+    objectives = {
+      {
+        text = "Find the Power Regulator",
+        short = "Find Power Regulator",
+        complete = function(game)
+          return getQuestStage() >= 2
+            or getInventoryCount(game and game.save, REGULATOR_ID) > 0
+        end,
+      },
+      {
+        text = "Return it to the researcher",
+        short = "Return the regulator",
+        complete = function() return getQuestStage() >= 2 end,
+      },
+      {
+        text = "Charge the Unstable Crystal",
+        short = "Charge the crystal",
+        target = EXP_PER_CANDY,
+        unit = "crystal EXP",
+        progress = function()
+          return math.min(getCrystalExp(), EXP_PER_CANDY), EXP_PER_CANDY
+        end,
+        complete = function()
+          return getQuestStage() >= 3 or getCrystalExp() >= EXP_PER_CANDY
+        end,
+      },
+      {
+        text = "Receive the Candy Jar",
+        short = "Receive Candy Jar",
+        complete = function(game)
+          return getQuestStage() >= QUEST_COMPLETE
+            or getInventoryCount(game and game.save, JAR_ID) > 0
+        end,
+      },
+    },
+  })
+
+  if err then
+    mod.log:warn("Candy Jar quest registration failed: " .. tostring(err))
+  else
+    mod.log:info("Candy Jar quest registered as " .. tostring(key))
+  end
+end
+
 local function hasAllBadges(save)
   -- Gen1Recomp stores gym badges as inventory entries, not as a
   -- save.badges bitfield/table.  Check the eight vanilla badge IDs
@@ -125,7 +203,7 @@ end
 
 -- Bag access (confirmed pattern -- see header)
 
-local function getInventoryCount(save, itemId)
+getInventoryCount = function(save, itemId)
   return (save and save.inventory and save.inventory[itemId]) or 0
 end
 
@@ -242,32 +320,6 @@ mod.hooks:wrap("ui.list_menu", function(next, opts, ctx)
   end
   return next(opts, ctx)
 end, HOOK_PRIORITY)
-
-local function closeJarBeforeMessage(menu)
-  local game = activeBagGame
-
-  -- Close the Jar first.
-  if menu and menu.close then
-    menu:close()
-  end
-
-  -- The custom Jar is normally reached through BagMenu -> USE/TOSS.
-  -- Do not leave either menu visible while operation dialogue is displayed.
-  -- Close the remaining UI states from the top down, but stop before the
-  -- overworld/game state.  We identify UI states by the presence of close().
-  if game and game.stack then
-    local stack = game.stack
-    for _ = 1, 3 do
-      local top = stack:top()
-      if not top or not top.close then
-        break
-      end
-      top:close()
-    end
-  end
-
-  activeBagGame = nil
-end
 
 local function closeJarBeforeMessage(menu)
   local game = activeBagGame
@@ -505,19 +557,57 @@ local ENGINEER_OBJECT = "CANDY_JAR_POWER_ENGINEER"
 local ENGINEER_TEXT = "TEXT_CANDY_JAR_POWER_ENGINEER"
 local ENGINEER_TRAINER = "CANDY_JAR_ENGINEER"
 
-mod.content.trainers:register(ENGINEER_TRAINER, {
-  id = ENGINEER_TRAINER,
-  name = "ENGINEER",
-  basePic = "OPP_ENGINEER",
-  baseMoney = 5,
-  parties = {
-    {
-      { species = "ELECTRODE", level = 52 },
-      { species = "ELECTABUZZ", level = 55 },
-      { species = "MAGNETON", level = 58 },
+-- A dialogue box has two visible rows. Plain newlines beyond the second row
+-- scroll immediately, which made longer Candy Jar conversations race past.
+-- Preserve the first line break on each page, then use the engine's CONT
+-- marker so every additional row waits for A/B before scrolling naturally.
+local function naturalText(text)
+  local pages = {}
+  for page in (tostring(text or "") .. "\f"):gmatch("(.-)\f") do
+    local breaks = 0
+    pages[#pages + 1] = page:gsub("\n", function()
+      breaks = breaks + 1
+      return breaks == 1 and "\n" or "\v"
+    end)
+  end
+  return table.concat(pages, "\f")
+end
+
+if IS_GOLD then
+  -- Gold's trainer registry is keyed by class and nests its named trainers.
+  -- Registering the flat Gen 1 `parties` record makes Gold reject the mod at
+  -- content-merge time before any Candy Jar code can run.
+  mod.content.trainers:register(ENGINEER_TRAINER, {
+    id = ENGINEER_TRAINER,
+    name = "ENGINEER",
+    baseMoney = 5,
+    trainers = {
+      {
+        id = "CANDY_JAR_ENGINEER_1",
+        name = "ENGINEER",
+        party = {
+          { species = "ELECTRODE", level = 52 },
+          { species = "ELECTABUZZ", level = 55 },
+          { species = "MAGNETON", level = 58 },
+        },
+      },
     },
-  },
-})
+  })
+else
+  mod.content.trainers:register(ENGINEER_TRAINER, {
+    id = ENGINEER_TRAINER,
+    name = "ENGINEER",
+    basePic = "OPP_ENGINEER",
+    baseMoney = 5,
+    parties = {
+      {
+        { species = "ELECTRODE", level = 52 },
+        { species = "ELECTABUZZ", level = 55 },
+        { species = "MAGNETON", level = 58 },
+      },
+    },
+  })
+end
 
 if not IS_GOLD then
   mod.content.maps:patch("POWER_PLANT", {
@@ -553,19 +643,19 @@ mod.content.map_scripts:register("POWER_PLANT", {
   talk = {
     [ENGINEER_TEXT] = {
       { "face_player" },
-      { "show_text",
-        "Hey there. Didn't expect to\nsee anyone else in here.\fI'm an engineer. I've been\nlooking around for useful\nsalvage.\fThis old place is full of\nequipment that nobody seems\nto want anymore.\fA Power Regulator? I could\nhelp you find one, I guess.\fI'd be willing to help... but\nyou've got to prove you're\nstrong enough to put it to\ngood use.\fHow about a Pokémon battle?" },
+      { "show_text", naturalText(
+        "Hey there. Didn't expect to\nsee anyone else in here.\fI'm an engineer. I've been\nlooking around for useful\nsalvage.\fThis old place is full of\nequipment that nobody seems\nto want anymore.\fA Power Regulator? I could\nhelp you find one, I guess.\fI'd be willing to help... but\nyou've got to prove you're\nstrong enough to put it to\ngood use.\fHow about a Pokémon battle?") },
       { "start_battle", "trainer", ENGINEER_TRAINER, 1 },
       { "check_battle_result", "win" },
       { "jump_if_false", "lost" },
-      { "show_text",
-        "You beat me fair and square!\fYou've got the strength to\nmake good use of this.\fHere. Take the Power\nRegulator I found." },
+      { "show_text", naturalText(
+        "You beat me fair and square!\fYou've got the strength to\nmake good use of this.\fHere. Take the Power\nRegulator I found.") },
       { "give_item", REGULATOR_ID },
       { "hide_object", "POWER_PLANT", ENGINEER_OBJECT },
       { "jump", "end" },
       { "label", "lost" },
-      { "show_text",
-        "Not bad. But you'll need to\nbeat me if you want that Power\nRegulator.\fCome back when you're ready." },
+      { "show_text", naturalText(
+        "Not bad. But you'll need to\nbeat me if you want that Power\nRegulator.\fCome back when you're ready.") },
     },
   },
 })
@@ -599,7 +689,7 @@ local SCIENTIST_INDEX = 900
 
 local function questText(game, overworld, npc, text, callback, ...)
   if npc then npc:facePlayer(overworld.player) end
-  game.stack:push(TextBox.new(game, Strings(text, ...), callback))
+  game.stack:push(TextBox.new(game, naturalText(Strings(text, ...)), callback))
 end
 
 local function yesNoMenu(game, onYes)
@@ -769,5 +859,7 @@ if IS_GOLD then
   end
   mod.events:on("map.entered", refreshGoldEngineer)
 end
+
+registerJournalQuest()
 
 mod.log:info("Candy Jar loaded")

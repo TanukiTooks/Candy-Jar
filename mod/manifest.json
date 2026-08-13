@@ -1,11 +1,12 @@
 {
   "id": "candy_jar",
   "name": "Candy Jar",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "api": 2,
   "entry": "main.lua",
   "profile": "content",
   "category": "QOL",
+  "github": "TanukiTooks/Candy-Jar",
   "game_version": ">=0.1.33 <2.0.0",
   "priority": 980,
   "games": ["gen1", "gen2"],
@@ -13,6 +14,6 @@
     "engine_internals"
   ],
   "dependencies": [],
-  "optional_dependencies": [],
+  "optional_dependencies": ["quest_menu"],
   "conflicts": []
 }

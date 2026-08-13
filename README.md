@@ -13,20 +13,23 @@ This project was Vibe Coded using Chat GPT.
 - Candy Jar item with custom menu
 - The ability to create and store Rare Candy from excess EXP earned at level 100
 - Short Quest to obtain the Item, started from Cinnabar Island's R&D Room
-- Works with Gen 2. Quest begins in a different location. (Currently untested)
+- Supports Pokémon Gold, where the quest begins at the Ruins of Alph Research Center
+- Optional Quest Menu integration with ordered objectives and live crystal EXP
 
 ## Installation
 
-1. Download the latest `CandyTools-*.zip` from the repository's **Releases** page.
-2. Extract the ZIP.
-3. Install the mod using the normal Gen1Recomp mod installation process.
-4. Enable CandyTools in the mod manager.
+1. Download the latest `CandyJar-*.zip` from the repository's **Releases** page.
+2. Install the ZIP through the Gen1Recomp launcher.
+3. Enable **Candy Jar** in the mod manager.
+
+Quest Menu integration is optional. When both mods are enabled, the Candy Jar
+research appears in the journal automatically.
 
 The `mod/` directory contains the editable source used for the release.
 
 ## Current Version
 
-**1.3.0**
+**1.5.0**
 
 ## Project Structure
 
@@ -42,7 +45,7 @@ Candy-Jar/
 
 ## Credits
 
-CandyTools was developed as a community mod for Gen1Recomp.
+Candy Jar was developed as a community mod for Gen1Recomp.
 
 Gen1Recomp:
 https://github.com/bryanthaboi/gen1recomp

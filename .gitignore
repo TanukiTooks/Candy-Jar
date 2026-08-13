@@ -1,0 +1,9 @@
+# Locally built release archives
+*.zip
+
+# Temporary validation and editor files
+work/
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
